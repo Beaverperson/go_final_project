@@ -1,0 +1,37 @@
+name: workflowirovivay
+
+on:
+  push:
+
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v4
+
+    - name: Build
+      run: go build -v ./...
+
+  test_step1:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v4
+
+    - name: step1
+      run: go test -run ^TestApp$ ./tests
+
+  test_step2:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v4
+
+    - name: step1
+      run: go test -run ^TestDB$ ./tests
+  
