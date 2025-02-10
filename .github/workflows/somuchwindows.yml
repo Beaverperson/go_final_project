@@ -6,16 +6,16 @@ on:
 
 jobs:
 
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-go@v4
-
-    - name: Install dependencies
-      rub: go get .
-    - name: Build
-      run: go build -v ./...
+  steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+      - name: Install dependencies
+        run: go get .
+      - name: Build
+        run: go build -v ./...
 
   test_step1:
     needs: build
