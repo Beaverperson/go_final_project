@@ -7,15 +7,15 @@ on:
 jobs:
 
   steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21.x'
-      - name: Install dependencies
-        run: go get .
-      - name: Build
-        run: go build -v ./...
+    - uses: actions/checkout@v4
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21.x'
+    - name: Install dependencies
+      run: go get .
+    - name: Build
+      run: go build -v ./...
 
   test_step1:
     needs: build
