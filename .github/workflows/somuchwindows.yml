@@ -7,6 +7,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: ubuntu
+    services:
+      web:
+        ports:
+        - 7540:7540
 
     steps:
       - uses: actions/checkout@v4
