@@ -10,8 +10,9 @@ jobs:
     container: ubuntu
     services:
       web:
+        image: ubuntu
         ports:
-        - 7540:7540
+          - "7540:7540"
 
     steps:
       - uses: actions/checkout@v4
