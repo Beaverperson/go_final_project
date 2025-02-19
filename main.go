@@ -25,7 +25,7 @@ func main() {
 	// setup SQL
 	appPath, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("Unable to get current working directory")
+		fmt.Printf("Не получилось найти текущую рабочую директорию. с каждым могло произойти")
 	}
 	dbFileName := getenv("TODO_DBFILE", "scheduler.db")
 	dbFile := filepath.Join(appPath, dbFileName)
@@ -44,16 +44,16 @@ func main() {
 												PRIMARY KEY("id" AUTOINCREMENT)
 											);
 											CREATE INDEX indexdate ON scheduler (date);`)
-			fmt.Printf("Новая база %s создана", dbFileName)
+			fmt.Printf("Новая база \"%s\" создана", dbFileName)
 			if errCreate != nil {
-				fmt.Printf("Ошибка записи в создаваемой базе: %s\n", errCreate.Error())
+				fmt.Printf("Ошибка записи в создаваемой базе: \"%s\"\n", errCreate.Error())
 			}
 			dbCreator.Close()
 		} else {
-			fmt.Printf("Ошибка доступа к создаваемой базе: %s\n", errOpen.Error())
+			fmt.Printf("Ошибка доступа к создаваемой базе: \"%s\"\n", errOpen.Error())
 		}
 	} else {
-		fmt.Printf("Database %s exist", dbFileName)
+		fmt.Printf("База \"%s\" уже существует\n", dbFileName)
 	}
 	// WEB
 	WebPort := getenv("TODO_PORT", strconv.Itoa(tests.Port))
