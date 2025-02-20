@@ -1,11 +1,10 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -23,38 +22,12 @@ func getenv(key, fallback string) string {
 
 func main() {
 	// setup SQL
-	appPath, err := os.Getwd()
+	db, err := getDBConnector()
 	if err != nil {
-		fmt.Printf("Не получилось найти текущую рабочую директорию. с каждым могло произойти")
+		log.Fatal()
 	}
-	dbFileName := getenv("TODO_DBFILE", "scheduler.db")
-	dbFile := filepath.Join(appPath, dbFileName)
-	_, err = os.Stat(dbFile)
-	// if DB file is missing - create
-	if err != nil {
-		os.Create(dbFile)
-		dbCreator, errOpen := sql.Open("sqlite3", dbFile)
-		if errOpen == nil {
-			_, errCreate := dbCreator.Exec(`CREATE TABLE "scheduler" (
-												"id"	INTEGER NOT NULL,
-												"date"	REAL NOT NULL,
-												"title"	TEXT,
-												"comment"	TEXT,
-												"repeat"	TEXT,
-												PRIMARY KEY("id" AUTOINCREMENT)
-											);
-											CREATE INDEX indexdate ON scheduler (date);`)
-			fmt.Printf("Новая база \"%s\" создана", dbFileName)
-			if errCreate != nil {
-				fmt.Printf("Ошибка записи в создаваемой базе: \"%s\"\n", errCreate.Error())
-			}
-			dbCreator.Close()
-		} else {
-			fmt.Printf("Ошибка доступа к создаваемой базе: \"%s\"\n", errOpen.Error())
-		}
-	} else {
-		fmt.Printf("База \"%s\" уже существует\n", dbFileName)
-	}
+	defer db.Close()
+
 	// WEB
 	WebPort := getenv("TODO_PORT", strconv.Itoa(tests.Port))
 	http.Handle("/", http.FileServer(http.Dir(tests.WebDir)))
