@@ -15,7 +15,6 @@ func nextDateHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Print("Некорретный формат параметров в запросе к /api/nextdate\n")
 		http.Error(w, "Некорретный формат параметров в запросе к /api/nextdate\n", http.StatusBadRequest)
 	}
-
 	w.Header().Set("Content-Type", "text/html")
 	nowTime, err := time.Parse("20250301", now)
 	if err != nil {
@@ -26,5 +25,6 @@ func nextDateHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
+	fmt.Printf("RESPONCE: %s", nextDateResponce)
 	w.Write([]byte(nextDateResponce))
 }
