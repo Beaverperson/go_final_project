@@ -8,7 +8,7 @@ import (
 )
 
 func NextDate(now time.Time, date string, repeat string) (string, error) {
-	dateTime, err := time.Parse("20250301", date)
+	dateTime, err := time.Parse("20060102", date)
 	if err != nil {
 		return "", err
 	}
@@ -21,22 +21,29 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 	repeatParam := NextDateParce[2]
 	switch repeatMode {
 	case "y":
+		fmt.Print("DEBUG nextdate function repeat mode is Y\n")
 		if repeatParam != "" {
+			fmt.Print("DEBUG nextdate function error - в ежегодную задачу пытаются отгрузить параметры\n")
 			return "", fmt.Errorf("в ежегодную задачу пытаются отгрузить параметры\"%s\"", repeat)
 		}
-		for dateTime.Compare(now) == -1 {
-			dateTime.AddDate(1, 0, 0)
+		for dateTime.Before(now) || dateTime.Equal(now) {
+			dateTime = dateTime.AddDate(1, 0, 0)
+			fmt.Printf("DEBUG current datetime - %s \n", dateTime.Format("20060102"))
 		}
-		return dateTime.Format("20250301"), nil
+		return dateTime.Format("20060102"), nil
 	case "d":
+		fmt.Print("DEBUG nextdate function repeat mode is D\n")
 		repeatInDays, _ := strconv.Atoi(repeatParam)
+		fmt.Printf("DEBUG nextdate function Repeat in days: \"%d\"\n", repeatInDays)
 		if repeatInDays == 0 || repeatInDays > 400 {
+			fmt.Print("DEBUG nextdate function error - некорректное значение параметра количества дней\n")
 			return "", fmt.Errorf("некорректное значение параметра количества дней %d в переносе задачи\"%s\"", repeatInDays, repeat)
 		}
-		for dateTime.Compare(now) == -1 {
-			dateTime.AddDate(0, 0, repeatInDays)
+		for dateTime.Before(now) || dateTime.Equal(now) {
+			dateTime = dateTime.AddDate(0, 0, repeatInDays)
+			fmt.Printf("DEBUG current datetime - %s \n", dateTime.Format("20060102"))
 		}
-		return dateTime.Format("20250301"), nil
+		return dateTime.Format("20060102"), nil
 	}
 	return "", fmt.Errorf("не смог распарсить \"%s\"", repeat)
 }

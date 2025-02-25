@@ -10,8 +10,12 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /final_project
 
+CMD ["/final_project"] 
+
 #RUN go test -run ^TestApp$ ./tests
 
 #RUN go test -run ^TestDB$ ./tests
 
 #RUN go test -run ^TestNextDate$ ./tests
+
+#docker build --tag final_project:v2 .

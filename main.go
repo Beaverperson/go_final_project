@@ -29,8 +29,8 @@ func main() {
 
 	// WEB
 	WebPort := getenv("TODO_PORT", strconv.Itoa(tests.Port))
-	http.Handle("/", http.FileServer(http.Dir(tests.WebDir)))
-	http.HandleFunc("/api/nextdate", nextDateHandler)
+	http.HandleFunc("/api/nextdate", HandlerNextDate)
+	http.Handle("/", http.FileServer(http.Dir("./web")))
 	if err := http.ListenAndServe(":"+WebPort, nil); err != nil {
 		fmt.Printf("ошибка запуска сервера: %s\n", err.Error())
 		return
