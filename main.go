@@ -1,0 +1,42 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+)
+
+const (
+	webDir         = "./web"
+	webPortDefault = "7540"
+	dbNameDefault  = "scheduler.db"
+	SQLinit        = `CREATE TABLE IF NOT EXISTS scheduler (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		date TEXT,
+		title TEXT,
+		comment TEXT,
+		repeat TEXT);
+		CREATE INDEX IF NOT EXISTS indexdate ON scheduler (date);`
+)
+
+func main() {
+	// START SQL DB
+	dbName := Getenv("TODO_DBFILE", dbNameDefault)
+	db, err := GetDBConnector(dbName)
+	fmt.Printf("INFO ROOT establishing connection to DB:%s\n", dbName)
+	if err != nil {
+		fmt.Printf("ERROR ROOT DB is unavailable. Terminating: %s\n", err.Error())
+		log.Fatal()
+	}
+	defer db.Close()
+	// START WEB
+	webPort := Getenv("TODO_PORT", webPortDefault)
+	fmt.Printf("INFO ROOT starting web server on port:%s\n", webPort)
+	// HANDLERS
+	http.Handle("/", http.FileServer(http.Dir(webDir)))
+	http.HandleFunc("/api/nextdate", HandlerNextDate)
+	if http.ListenAndServe(":"+webPort, nil) != nil {
+		fmt.Printf("ERROR ROOT web server isn't started: %s\n", err.Error())
+		log.Fatal()
+	}
+}
