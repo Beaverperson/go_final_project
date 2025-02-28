@@ -17,7 +17,16 @@ const (
 		comment TEXT,
 		repeat TEXT);
 		CREATE INDEX IF NOT EXISTS indexdate ON scheduler (date);`
+	dateFormat = "20060102"
 )
+
+type Task struct {
+	ID      int    `json:"id"`
+	Date    string `json:"date"`
+	Title   string `json:"title"`
+	Comment string `json:"comment,omitempty"`
+	Repeat  string `json:"repeat,omitempty"`
+}
 
 func main() {
 	// START SQL DB
@@ -35,6 +44,7 @@ func main() {
 	// HANDLERS
 	http.Handle("/", http.FileServer(http.Dir(webDir)))
 	http.HandleFunc("/api/nextdate", HandlerNextDate)
+
 	if http.ListenAndServe(":"+webPort, nil) != nil {
 		fmt.Printf("ERROR ROOT web server isn't started: %s\n", err.Error())
 		log.Fatal()

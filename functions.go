@@ -18,7 +18,7 @@ func Getenv(key, fallback string) string {
 }
 
 func NextDate(now time.Time, date string, repeat string) (string, error) {
-	dateTime, err := time.Parse("20060102", date)
+	dateTime, err := time.Parse(dateFormat, date)
 	if err != nil {
 		fmt.Printf("ERROR FUNC nextdate incorrect date(%s) format\n", date)
 		return "", err
@@ -33,7 +33,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		for dateTime.Before(now) || dateTime.Equal(now) {
 			dateTime = dateTime.AddDate(1, 0, 0)
 		}
-		out := dateTime.Format("20060102")
+		out := dateTime.Format(dateFormat)
 		fmt.Printf("DEBUG FUNC nextdate repeat pattern is \"Y\" [%s -> %s]\n", date, out)
 		return out, nil
 	case strings.HasPrefix(repeat, "d "):
@@ -51,7 +51,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		for dateTime.Before(now) || dateTime.Equal(now) {
 			dateTime = dateTime.AddDate(0, 0, days)
 		}
-		out := dateTime.Format("20060102")
+		out := dateTime.Format(dateFormat)
 		fmt.Printf("DEBUG FUNC nextdate repeat pattern is \"Y\" [%s -> %s]\n", date, out)
 		return out, nil
 	default:
