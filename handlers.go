@@ -103,3 +103,53 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 }
+
+func HandlerAPITaskS(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	fmt.Printf("INFO API received get tasks message \"/api/task\"\n")
+	tasks := []Task{}
+	count := 0
+	rowsCount := db.QueryRow("SELECT count(*) FROM scheduler")
+	_ = rowsCount.Scan(&count)
+	fmt.Printf("INFO SQL number of tasks in scheduler: %d", count)
+	if count > 0 {
+		query := fmt.Sprintf(`SELECT TOP %d FROM scheduler ORDER BY date`, maxRowsTasks)
+		rowsData, err := db.Query(query)
+		if err != nil {
+			fmt.Print("ERROR SQL unable to get current tasks")
+			http.Error(w, fmt.Sprintf(`{"error": "Unable to get current tasks: %s"}`, err),
+				http.StatusInternalServerError)
+			return
+		}
+		fmt.Print("INFO SQL get task(s) from scheduler")
+		var task Task
+		for rowsData.Next() {
+			err := rowsData.Scan(
+				&task.ID,
+				&task.Date,
+				&task.Title,
+				&task.Comment,
+				&task.Repeat)
+			if err != nil {
+				fmt.Print("ERROR SQL unable to parce current tasks")
+				http.Error(w, fmt.Sprintf(`{"error": "Unable to parce current tasks: %s"}`, err),
+					http.StatusInternalServerError)
+			}
+			tasks = append(tasks, task)
+		}
+		fmt.Printf("INFO SQL received %d task(s) from scheduler DB", len(tasks))
+		resp, err := json.Marshal(tasks)
+		if err != nil {
+			fmt.Print("ERROR API unable to seriliaze current tasks")
+			http.Error(w, fmt.Sprintf(`{"error": "Unable to seriliaze current tasks: %s"}`, err),
+				http.StatusInternalServerError)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(resp)
+	}
+	if count == 0 {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"tasks": tasks})
+	}
+}

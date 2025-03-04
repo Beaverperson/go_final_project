@@ -17,7 +17,8 @@ const (
 		comment TEXT,
 		repeat TEXT);
 		CREATE INDEX IF NOT EXISTS indexdate ON scheduler (date);`
-	dateFormat = "20060102"
+	dateFormat   = "20060102"
+	maxRowsTasks = 10
 )
 
 type Task struct {
@@ -44,7 +45,12 @@ func main() {
 	// HANDLERS
 	http.Handle("/", http.FileServer(http.Dir(webDir)))
 	http.HandleFunc("/api/nextdate", HandlerNextDate)
-
+	http.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) {
+		HandlerAPITask(w, r, db)
+	})
+	http.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
+		HandlerAPITaskS(w, r, db)
+	})
 	if http.ListenAndServe(":"+webPort, nil) != nil {
 		fmt.Printf("ERROR ROOT web server isn't started: %s\n", err.Error())
 		log.Fatal()
