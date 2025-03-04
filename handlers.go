@@ -46,6 +46,8 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			http.Error(w, `{"error": "JSON deserialization"}`,
 				http.StatusBadRequest)
 		}
+		fmt.Printf("DEBUG API POST message \"/api/task\" serialization (id,%s,%s,%s,%s)\n",
+			task.Date, task.Title, task.Comment, task.Repeat)
 		if task.Title == "" {
 			fmt.Print("ERROR API title is mandatory  \"/api/task\"\n")
 			http.Error(w, `{"error": "Title is required"}`,
@@ -62,7 +64,10 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					http.StatusBadRequest)
 				return
 			}
-			if parsedDate.Before(time.Now()) {
+			//if parsedDate.Before(time.Now()) {
+			if parsedDate.Format(dateFormat) < time.Now().Format(dateFormat) {
+				fmt.Print("DEBUG API task date from \"/api/task\" is BEFORE NOW\n")
+				fmt.Printf("Parsed: %s, Now: %s\n", parsedDate.Format(dateFormat), time.Now().Format(dateFormat))
 				if task.Repeat == "" {
 					task.Date = time.Now().Format(dateFormat)
 				} else {
@@ -98,17 +103,18 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{"id": id})
 	case r.Method == http.MethodGet:
-		fmt.Print("INFO API task received POST message \"/api/task\"\n")
-		taskId := r.FormValue("id")
+		fmt.Print("INFO API task received GET message \"/api/task\"\n")
+		taskId := r.URL.Query().Get("id")
+		//fmt.Print(r.URL)
 		fmt.Printf("DEBUG API \"/api/task\" GET param \"id\": %s\n", taskId)
 		if len(taskId) == 0 {
 			fmt.Print("ERROR API incorrect task id parameter \"/api/task\"\n")
 			http.Error(w, `{"error": "Task ID is missing"}`,
 				http.StatusBadRequest)
+			return
 		}
 		query := `SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`
 		row := db.QueryRow(query, taskId)
-		var task Task
 		err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 		if err == sql.ErrNoRows {
 			fmt.Printf("INFO SQL task with ID %s not found\n", taskId)
@@ -143,7 +149,7 @@ func HandlerAPITaskS(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	count := 0
 	rowsCount := db.QueryRow("SELECT count(*) FROM scheduler")
 	_ = rowsCount.Scan(&count)
-	fmt.Printf("INFO SQL number of tasks in scheduler: %d", count)
+	fmt.Printf("INFO SQL number of tasks in scheduler: %d\n", count)
 	if count > 0 {
 		query := fmt.Sprintf(`SELECT TOP %d FROM scheduler ORDER BY date`, maxRowsTasks)
 		rowsData, err := db.Query(query)

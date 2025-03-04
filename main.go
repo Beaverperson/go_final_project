@@ -11,18 +11,19 @@ const (
 	webPortDefault = "7540"
 	dbNameDefault  = "scheduler.db"
 	SQLinit        = `CREATE TABLE IF NOT EXISTS scheduler (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		date TEXT,
-		title TEXT,
-		comment TEXT,
-		repeat TEXT);
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            title TEXT NOT NULL,
+            comment TEXT,
+            repeat TEXT
+			);
 		CREATE INDEX IF NOT EXISTS indexdate ON scheduler (date);`
 	dateFormat   = "20060102"
 	maxRowsTasks = 10
 )
 
 type Task struct {
-	ID      int    `json:"id"`
+	ID      string `json:"id"`
 	Date    string `json:"date"`
 	Title   string `json:"title"`
 	Comment string `json:"comment,omitempty"`

@@ -28,10 +28,10 @@ func GetDBConnector(dbFileName string) (*sql.DB, error) {
 		return nil, err
 	}
 	dbFile := filepath.Join(appPath, dbFileName)
-	fmt.Printf("INFO SQL full path to DB file: %s", dbFile)
+	fmt.Printf("INFO SQL full path to DB file: %s\n", dbFile)
 	_, err = os.Stat(dbFile)
 	if err != nil {
-		fmt.Print("INFO SQL DB is missing. creating... \n")
+		fmt.Print("INFO SQL DB is missing. creating... ")
 		os.Create(dbFile)
 	}
 	dbCreator, errOpen := sql.Open("sqlite3", dbFile)
@@ -39,16 +39,7 @@ func GetDBConnector(dbFileName string) (*sql.DB, error) {
 		return nil, fmt.Errorf("unable to open DB \"%s\"", dbFileName)
 	}
 	fmt.Print("\n")
-	_, errCreate := dbCreator.Exec(`
-		CREATE TABLE IF NOT EXISTS scheduler (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		date REAL NOT NULL,
-		title TEXT,
-		comment	TEXT,
-		repeat TEXT
-		);
-		CREATE INDEX IF NOT EXISTS indexdate ON scheduler (date);
-		`)
+	_, errCreate := dbCreator.Exec(SQLinit)
 	if errCreate != nil {
 		return nil, errCreate
 	}
@@ -91,7 +82,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 			dateTime = dateTime.AddDate(0, 0, days)
 		}
 		out := dateTime.Format(dateFormat)
-		fmt.Printf("DEBUG FUNC nextdate repeat pattern is \"Y\" [%s -> %s]\n", date, out)
+		fmt.Printf("DEBUG FUNC nextdate repeat pattern is \"D\" [%s -> %s]\n", date, out)
 		return out, nil
 	default:
 		fmt.Printf("ERROR FUNC unable to find correct repeat pattern in \"%s\"\n", repeat)
