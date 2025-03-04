@@ -97,6 +97,39 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{"id": id})
+	case r.Method == http.MethodGet:
+		fmt.Print("INFO API task received POST message \"/api/task\"\n")
+		taskId := r.FormValue("id")
+		fmt.Printf("DEBUG API \"/api/task\" GET param \"id\": %s\n", taskId)
+		if len(taskId) == 0 {
+			fmt.Print("ERROR API incorrect task id parameter \"/api/task\"\n")
+			http.Error(w, `{"error": "Task ID is missing"}`,
+				http.StatusBadRequest)
+		}
+		query := `SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`
+		row := db.QueryRow(query, taskId)
+		var task Task
+		err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+		if err == sql.ErrNoRows {
+			fmt.Printf("INFO SQL task with ID %s not found\n", taskId)
+			http.Error(w, `{"error": "Task with ID not found"}`,
+				http.StatusBadRequest)
+			return
+		} else if err != nil {
+			fmt.Printf("ERROR SQL error while retrieving task with ID %s: %s\n", taskId, err)
+			http.Error(w, `{"error": "Task ID is missing"}`,
+				http.StatusInternalServerError)
+			return
+		}
+		resp, err := json.Marshal(task)
+		if err != nil {
+			fmt.Print("ERROR API unable to seriliaze selected task")
+			http.Error(w, fmt.Sprintf(`{"error": "Unable to seriliaze current task %s:"}`, taskId),
+				http.StatusInternalServerError)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(resp)
 	default:
 		fmt.Print("ERROR API wrong http method while accessing \"/api/task\"\n")
 		http.Error(w, fmt.Sprintf("wrong http method: %s\n", r.Method), http.StatusMethodNotAllowed)
