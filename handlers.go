@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -136,6 +137,40 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write(resp)
+	case r.Method == http.MethodPut:
+		fmt.Print("INFO API task received PUT message \"/api/task\"\n")
+		if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
+			fmt.Print("ERROR API unable to deserialize JSON")
+			http.Error(w, `{"error": "Unable to deserialize JSON"}`, http.StatusBadRequest)
+			return
+		}
+		if task.ID == "" || task.Title == "" {
+			fmt.Print("ERROR API missing mandatory fields in PUT message")
+			http.Error(w, `{"error": "Missing mandatory fields in PUT message"}`, http.StatusBadRequest)
+			return
+		}
+		if _, err := time.Parse(dateFormat, task.Date); err != nil {
+			fmt.Print("ERROR API unable to format date in PUT message")
+			http.Error(w, `{"error": "Unable to format date in PUT message"}`, http.StatusBadRequest)
+			return
+		}
+		if (task.Repeat != "" && task.Repeat != "y") &&
+			!regexp.MustCompile(daysRegex).MatchString(task.Repeat) {
+			fmt.Print("ERROR API unable to format repeat in PUT message")
+			http.Error(w, `{"error": "Unable to format repeat in PUT message"}`, http.StatusBadRequest)
+			return
+		}
+		query := `UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`
+		_, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
+		if err != nil {
+			fmt.Printf("ERROR SQL unable to update task with ID: %s", task.ID)
+			http.Error(w, `{"error": "Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{})
+
 	default:
 		fmt.Print("ERROR API wrong http method while accessing \"/api/task\"\n")
 		http.Error(w, fmt.Sprintf("wrong http method: %s\n", r.Method), http.StatusMethodNotAllowed)

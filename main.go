@@ -20,6 +20,7 @@ const (
 		CREATE INDEX IF NOT EXISTS indexdate ON scheduler (date);`
 	dateFormat   = "20060102"
 	maxRowsTasks = 10
+	daysRegex    = `^d\s(\d+)$`
 )
 
 type Task struct {

@@ -53,7 +53,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		fmt.Printf("ERROR FUNC nextdate incorrect date(%s) format\n", date)
 		return "", err
 	}
-	reDays := regexp.MustCompile(`^d\s(\d+)$`)
+	reDays := regexp.MustCompile(daysRegex)
 	switch {
 	case repeat == "":
 		fmt.Print("DEBUG FUNC nextdate repeat string is missing\n")
