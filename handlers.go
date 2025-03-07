@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -89,14 +90,14 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		if err != nil {
 			fmt.Printf("ERROR SQL unable to submit data to scheduler (%s, %s, %s, %s)\n",
 				task.Date, task.Title, task.Comment, task.Repeat)
-			http.Error(w, fmt.Sprintf(`{"error": "Unable to submit data to DB: %v"}`, err),
+			http.Error(w, fmt.Sprintf(`{"error":"Unable to submit data to DB: %v"}`, err),
 				http.StatusInternalServerError)
 			return
 		}
 		id, err := result.LastInsertId()
 		if err != nil {
 			fmt.Print("ERROR SQL unable to get last scheduler task ID")
-			http.Error(w, fmt.Sprintf(`{"error": "Unable to get last scheduler task ID: %s"}`, err),
+			http.Error(w, fmt.Sprintf(`{"error":"Unable to get last scheduler task ID: %s"}`, err),
 				http.StatusInternalServerError)
 			return
 		}
@@ -110,7 +111,7 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		fmt.Printf("DEBUG API \"/api/task\" GET param \"id\": %s\n", taskId)
 		if len(taskId) == 0 {
 			fmt.Print("ERROR API incorrect task id parameter \"/api/task\"\n")
-			http.Error(w, `{"error": "Task ID is missing"}`,
+			http.Error(w, `{"error":"Task ID is missing"}`,
 				http.StatusBadRequest)
 			return
 		}
@@ -139,38 +140,55 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		w.Write(resp)
 	case r.Method == http.MethodPut:
 		fmt.Print("INFO API task received PUT message \"/api/task\"\n")
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 			fmt.Print("ERROR API unable to deserialize JSON")
-			http.Error(w, `{"error": "Unable to deserialize JSON"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"Unable to deserialize JSON"}`, http.StatusBadRequest)
+			return
+		}
+		fmt.Printf("DEBUG API PUT message \"/api/task\" %+v\n", task)
+		if _, err := strconv.Atoi(task.ID); err != nil {
+			//TODO надо бы в легулярку чтобы не подгружать библиотеку strconv
+			fmt.Printf("ERROR API ID is not a number: %s\n", task.ID)
+			http.Error(w, `{"error":"ID is not a number"}`, http.StatusBadRequest)
 			return
 		}
 		if task.ID == "" || task.Title == "" {
-			fmt.Print("ERROR API missing mandatory fields in PUT message")
-			http.Error(w, `{"error": "Missing mandatory fields in PUT message"}`, http.StatusBadRequest)
+			fmt.Print("ERROR API missing mandatory fields in PUT message\n")
+			http.Error(w, `{"error":"Missing mandatory fields in PUT message"}`, http.StatusBadRequest)
 			return
 		}
 		if _, err := time.Parse(dateFormat, task.Date); err != nil {
-			fmt.Print("ERROR API unable to format date in PUT message")
-			http.Error(w, `{"error": "Unable to format date in PUT message"}`, http.StatusBadRequest)
+			fmt.Print("ERROR API unable to format date in PUT message\n")
+			http.Error(w, `{"error":"Unable to format date in PUT message"}`, http.StatusBadRequest)
 			return
 		}
 		if (task.Repeat != "" && task.Repeat != "y") &&
 			!regexp.MustCompile(daysRegex).MatchString(task.Repeat) {
-			fmt.Print("ERROR API unable to format repeat in PUT message")
-			http.Error(w, `{"error": "Unable to format repeat in PUT message"}`, http.StatusBadRequest)
+			fmt.Print("ERROR API unable to format repeat in PUT message\n")
+			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusBadRequest)
 			return
 		}
 		query := `UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`
-		_, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
+		execResult, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
 		if err != nil {
-			fmt.Printf("ERROR SQL unable to update task with ID: %s", task.ID)
-			http.Error(w, `{"error": "Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
+			fmt.Printf("ERROR SQL unable to update task with ID: %s\n", task.ID)
+			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		rowsAffected, err := execResult.RowsAffected()
+		if err != nil {
+			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after updating task ID: %s\n", task.ID)
+			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
+			return
+		}
+		if rowsAffected == 0 {
+			fmt.Printf("INFO SQL there is no task with ID (update failed): %s\n", task.ID)
+			http.Error(w, `{"error":"Corresponding ID not found in SQL database"}`, http.StatusNotFound)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{})
-
 	default:
 		fmt.Print("ERROR API wrong http method while accessing \"/api/task\"\n")
 		http.Error(w, fmt.Sprintf("wrong http method: %s\n", r.Method), http.StatusMethodNotAllowed)
