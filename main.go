@@ -56,6 +56,7 @@ func main() {
 	http.HandleFunc("/api/task/done", func(w http.ResponseWriter, r *http.Request) {
 		HandlerAPITaskDone(w, r, db)
 	})
+	//http.HandleFunc("/", HandlerOTHER)
 	if http.ListenAndServe(":"+webPort, nil) != nil {
 		fmt.Printf("ERROR ROOT web server isn't started: %s\n", err.Error())
 		log.Fatal()

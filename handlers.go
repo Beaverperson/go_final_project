@@ -189,8 +189,47 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{})
+	case r.Method == http.MethodDelete:
+		// Do Repeat Yorself driven application development
+		var task Task
+		taskId := r.URL.Query().Get("id")
+		if taskId == "" {
+			fmt.Print("ERROR API task ID field is empty\n")
+			http.Error(w, `{"error":"task ID field is empty"}`, http.StatusBadRequest)
+			return
+		}
+		if _, err := strconv.Atoi(taskId); err != nil {
+			//TODO надо бы в легулярку чтобы не подгружать библиотеку strconv
+			fmt.Printf("ERROR API ID is not a number: %s\n", taskId)
+			http.Error(w, `{"error":"ID is not a number"}`, http.StatusBadRequest)
+			return
+		}
+		fmt.Printf("INFO API received DELETE message \"/api/task\"\n")
+		query := `DELETE FROM scheduler WHERE id = ?`
+		execResult, err := db.Exec(query, taskId)
+		if err != nil {
+			fmt.Printf("ERROR SQL unable to delete task with ID: %s\n", taskId)
+			http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
+			return
+		}
+		rowsAffected, err := execResult.RowsAffected()
+		if err != nil {
+			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after deleting task ID: %s\n", task.ID)
+			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
+			return
+		}
+		if rowsAffected == 0 {
+			fmt.Printf("INFO SQL there is no task with ID (delete failed): %s\n", task.ID)
+			http.Error(w, `{"error":"Corresponding ID not found in SQL database"}`, http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{})
 	default:
-		fmt.Print("ERROR API wrong http method while accessing \"/api/task\"\n")
+		url := r.RequestURI
+		method := r.Method
+		fmt.Printf("ERROR API attempt to access \"/api/task\" \"%s\"(method: %s)\n", url, method)
+		//fmt.Print("ERROR API wrong http method while accessing \"/api/task\"\n")
 		http.Error(w, fmt.Sprintf("wrong http method: %s\n", r.Method), http.StatusMethodNotAllowed)
 		return
 	}
@@ -312,6 +351,13 @@ func HandlerAPITaskDone(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{})
+		json.NewEncoder(w).Encode(map[string]string{})
 	}
+}
+
+func HandlerOTHER(w http.ResponseWriter, r *http.Request) {
+	url := r.RequestURI
+	method := r.Method
+	fmt.Printf("ERROR API attempt to access API \"%s\"(method: %s)\n", url, method)
+	http.Error(w, `{"error": "wrong URL"}`, http.StatusNotFound)
 }
