@@ -48,8 +48,8 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			http.Error(w, `{"error": "JSON deserialization"}`,
 				http.StatusBadRequest)
 		}
-		fmt.Printf("DEBUG API POST message \"/api/task\" serialization (id,%s,%s,%s,%s)\n",
-			task.Date, task.Title, task.Comment, task.Repeat)
+		fmt.Printf("DEBUG API POST message \"/api/task\" serialization %v\n",
+			task)
 		if task.Title == "" {
 			fmt.Print("ERROR API title is mandatory  \"/api/task\"\n")
 			http.Error(w, `{"error": "Title is required"}`,
@@ -173,7 +173,7 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		execResult, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
 		if err != nil {
 			fmt.Printf("ERROR SQL unable to update task with ID: %s\n", task.ID)
-			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
+			http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
 			return
 		}
 		rowsAffected, err := execResult.RowsAffected()
@@ -204,17 +204,17 @@ func HandlerAPITaskS(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	_ = rowsCount.Scan(&count)
 	fmt.Printf("INFO SQL number of tasks in scheduler: %d\n", count)
 	if count > 0 {
-		query := fmt.Sprintf(`SELECT TOP %d FROM scheduler ORDER BY date`, maxRowsTasks)
-		rowsData, err := db.Query(query)
+		query := `SELECT * FROM scheduler ORDER BY date ASC LIMIT ?`
+		rowsData, err := db.Query(query, maxRowsTasks)
 		if err != nil {
-			fmt.Print("ERROR SQL unable to get current tasks")
+			fmt.Print("ERROR SQL unable to get current tasks\n")
 			http.Error(w, fmt.Sprintf(`{"error": "Unable to get current tasks: %s"}`, err),
 				http.StatusInternalServerError)
 			return
 		}
-		fmt.Print("INFO SQL get task(s) from scheduler")
-		var task Task
+		fmt.Print("INFO SQL get task(s) from scheduler\n")
 		for rowsData.Next() {
+			var task Task
 			err := rowsData.Scan(
 				&task.ID,
 				&task.Date,
@@ -222,26 +222,96 @@ func HandlerAPITaskS(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				&task.Comment,
 				&task.Repeat)
 			if err != nil {
-				fmt.Print("ERROR SQL unable to parce current tasks")
+				fmt.Print("ERROR SQL unable to parce current tasks\n")
 				http.Error(w, fmt.Sprintf(`{"error": "Unable to parce current tasks: %s"}`, err),
 					http.StatusInternalServerError)
 			}
 			tasks = append(tasks, task)
 		}
-		fmt.Printf("INFO SQL received %d task(s) from scheduler DB", len(tasks))
-		resp, err := json.Marshal(tasks)
-		if err != nil {
-			fmt.Print("ERROR API unable to seriliaze current tasks")
-			http.Error(w, fmt.Sprintf(`{"error": "Unable to seriliaze current tasks: %s"}`, err),
-				http.StatusInternalServerError)
-		}
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusOK)
-		w.Write(resp)
 	}
-	if count == 0 {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	fmt.Printf("INFO SQL received %d task(s) from scheduler DB\n", len(tasks))
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{"tasks": tasks})
+}
+
+func HandlerAPITaskDone(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	var task Task
+	taskId := r.URL.Query().Get("id")
+	if taskId == "" {
+		fmt.Print("ERROR API task ID field is empty\n")
+		http.Error(w, `{"error":"task ID field is empty"}`, http.StatusBadRequest)
+	}
+	if _, err := strconv.Atoi(taskId); err != nil {
+		//TODO надо бы в легулярку чтобы не подгружать библиотеку strconv
+		fmt.Printf("ERROR API ID is not a number: %s\n", taskId)
+		http.Error(w, `{"error":"ID is not a number"}`, http.StatusBadRequest)
+		return
+	}
+	switch {
+	case r.Method == http.MethodPost:
+		fmt.Printf("INFO API received POST message \"/api/task/done\"\n")
+		query := `SELECT id, date, repeat FROM scheduler WHERE id = ?`
+		err := db.QueryRow(query, taskId).Scan(&task.ID, &task.Date, &task.Repeat)
+		if err == sql.ErrNoRows {
+			fmt.Printf("INFO SQL there is no task with ID %s (update failed):", taskId)
+			http.Error(w, `{"error":"Corresponding ID not found in SQL database"}`, http.StatusNotFound)
+			return
+		} else if err != nil {
+			fmt.Printf("ERROR SQL unable to update task with ID: %s\n", task.ID)
+			http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
+			return
+		}
+		fmt.Printf("DEBUG API \"/api/task/done\" retrived from DB %+v\n", task)
+		if task.Repeat == "" {
+			fmt.Printf("DEBUG SQL \"repeat\" is empty, trying to delete task with id: %s\n", task.ID)
+			_, err := db.Exec(`DELETE FROM scheduler WHERE id = ?`, taskId)
+			if err != nil {
+				fmt.Printf("ERROR SQL unable to delete task with id: %s", task.ID)
+				http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
+				return
+			}
+		} else {
+			fmt.Printf("DEBUG API \"repeat\" is not empty, trying to calculate new date for task ID: %s\n", task.ID)
+			now := time.Now()
+			nextDate, err := NextDate(now, task.Date, task.Repeat)
+			if err != nil {
+				fmt.Printf("DEBUG API failed to calculate new date for task ID: %s\t(%s)\n", task.ID, err)
+				http.Error(w, `{"error":"failed to calculate new date for the task"}`, http.StatusInternalServerError)
+				return
+			}
+			fmt.Print("DEBUG API new date calculated, proceed to update DB\n")
+			_, err = db.Exec(`UPDATE scheduler SET date = ? WHERE id = ?`, nextDate, taskId)
+			if err != nil {
+				fmt.Printf("ERROR SQL failed to UPDATE ID: %s\t(%s)", task.ID, err)
+				http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
+				return
+			}
+			fmt.Printf("INFO SQL task with ID: %s updated\n", taskId)
+		}
+		json.NewEncoder(w).Encode(map[string]string{})
+	case r.Method == http.MethodDelete:
+		fmt.Printf("INFO API received DELETE message \"/api/task/done\"\n")
+		query := `DELETE FROM scheduler WHERE id = ?`
+		execResult, err := db.Exec(query, taskId)
+		if err != nil {
+			fmt.Printf("ERROR SQL unable to delete task with ID: %s\n", taskId)
+			http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
+			return
+		}
+		rowsAffected, err := execResult.RowsAffected()
+		if err != nil {
+			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after deleting task ID: %s\n", task.ID)
+			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
+			return
+		}
+		if rowsAffected == 0 {
+			fmt.Printf("INFO SQL there is no task with ID (delete failed): %s\n", task.ID)
+			http.Error(w, `{"error":"Corresponding ID not found in SQL database"}`, http.StatusNotFound)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"tasks": tasks})
+		json.NewEncoder(w).Encode(map[string]interface{}{})
 	}
 }

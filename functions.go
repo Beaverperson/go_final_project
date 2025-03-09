@@ -28,7 +28,7 @@ func GetDBConnector(dbFileName string) (*sql.DB, error) {
 		return nil, err
 	}
 	dbFile := filepath.Join(appPath, dbFileName)
-	fmt.Printf("INFO SQL full path to DB file: %s\n", dbFile)
+	fmt.Printf("INFO SQL full path to DB file: %s", dbFile)
 	_, err = os.Stat(dbFile)
 	if err != nil {
 		fmt.Print("INFO SQL DB is missing. creating... ")
