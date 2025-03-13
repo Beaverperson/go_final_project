@@ -226,7 +226,6 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		url := r.RequestURI
 		method := r.Method
 		fmt.Printf("ERROR API attempt to access \"/api/task\" \"%s\"(method: %s)\n", url, method)
-		//fmt.Print("ERROR API wrong http method while accessing \"/api/task\"\n")
 		http.Error(w, fmt.Sprintf("wrong http method: %s\n", r.Method), http.StatusMethodNotAllowed)
 		return
 	}
@@ -239,31 +238,35 @@ func HandlerAPITaskS(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	rowsCount := db.QueryRow("SELECT count(*) FROM scheduler")
 	_ = rowsCount.Scan(&count)
 	fmt.Printf("INFO SQL number of tasks in scheduler: %d\n", count)
-	if count > 0 {
-		query := `SELECT * FROM scheduler ORDER BY date ASC LIMIT ?`
-		rowsData, err := db.Query(query, maxRowsTasks)
+	if count == 0 {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"tasks": tasks})
+		return
+	}
+	query := `SELECT * FROM scheduler ORDER BY date ASC LIMIT ?`
+	rowsData, err := db.Query(query, maxRowsTasks)
+	if err != nil {
+		fmt.Printf("ERROR SQL unable to get current tasks (%s)\n", err.Error())
+		http.Error(w, fmt.Sprintf(`{"error": "Unable to get current tasks: %s"}`, err),
+			http.StatusInternalServerError)
+		return
+	}
+	fmt.Print("INFO SQL get task(s) from scheduler\n")
+	for rowsData.Next() {
+		var task Task
+		err := rowsData.Scan(
+			&task.ID,
+			&task.Date,
+			&task.Title,
+			&task.Comment,
+			&task.Repeat)
 		if err != nil {
-			fmt.Printf("ERROR SQL unable to get current tasks (%s)\n", err.Error())
-			http.Error(w, fmt.Sprintf(`{"error": "Unable to get current tasks: %s"}`, err),
+			fmt.Printf("ERROR SQL unable to parce current tasks (%s)\n", err.Error())
+			http.Error(w, fmt.Sprintf(`{"error": "Unable to parce current tasks: %s"}`, err),
 				http.StatusInternalServerError)
-			return
 		}
-		fmt.Print("INFO SQL get task(s) from scheduler\n")
-		for rowsData.Next() {
-			var task Task
-			err := rowsData.Scan(
-				&task.ID,
-				&task.Date,
-				&task.Title,
-				&task.Comment,
-				&task.Repeat)
-			if err != nil {
-				fmt.Printf("ERROR SQL unable to parce current tasks (%s)\n", err.Error())
-				http.Error(w, fmt.Sprintf(`{"error": "Unable to parce current tasks: %s"}`, err),
-					http.StatusInternalServerError)
-			}
-			tasks = append(tasks, task)
-		}
+		tasks = append(tasks, task)
 	}
 	fmt.Printf("INFO SQL received %d task(s) from scheduler DB\n", len(tasks))
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
