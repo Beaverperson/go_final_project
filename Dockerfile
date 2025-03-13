@@ -8,7 +8,7 @@ RUN go mod download
 
 COPY ./ ./
 
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o /scheduler.bin
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o /scheduler
 #'CGO_ENABLED=0', go-sqlite3 requires cgo to work
 
 CMD ["/scheduler.bin"]

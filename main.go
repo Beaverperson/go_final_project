@@ -37,7 +37,7 @@ func main() {
 	db, err := GetDBConnector(dbName)
 	fmt.Printf("INFO ROOT establishing connection to DB:%s\n", dbName)
 	if err != nil {
-		fmt.Printf("ERROR ROOT DB is unavailable. Terminating: %s\n", err.Error())
+		fmt.Printf("ERROR ROOT DB is unavailable. Terminating: (%s)\n", err.Error())
 		log.Fatal()
 	}
 	defer db.Close()
@@ -58,7 +58,7 @@ func main() {
 	})
 	//http.HandleFunc("/", HandlerOTHER)
 	if http.ListenAndServe(":"+webPort, nil) != nil {
-		fmt.Printf("ERROR ROOT web server isn't started: %s\n", err.Error())
+		fmt.Printf("ERROR ROOT web server isn't started: (%s)\n", err.Error())
 		log.Fatal()
 	}
 }

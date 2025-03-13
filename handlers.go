@@ -25,7 +25,7 @@ func HandlerNextDate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	nowTime, err := time.Parse(dateFormat, nowParam)
 	if err != nil {
-		fmt.Print("ERROR API can't convert \"now\" to time format\n")
+		fmt.Printf("ERROR API can't convert \"now\" to time format (%s)\n", err.Error())
 		http.Error(w, "can't convert \"now\" to time format\n",
 			http.StatusBadRequest)
 	}
@@ -44,20 +44,20 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		fmt.Print("INFO API task received POST message \"/api/task\"\n")
 		err := json.NewDecoder(r.Body).Decode(&task)
 		if err != nil {
-			fmt.Print("ERROR API unable to deserialize JSON  \"/api/task\"\n")
+			fmt.Printf("ERROR API unable to deserialize JSON \"/api/task\" (%s)\n", err.Error())
 			http.Error(w, `{"error": "JSON deserialization"}`,
 				http.StatusBadRequest)
 		}
 		fmt.Printf("DEBUG API POST message \"/api/task\" serialization %v\n",
 			task)
 		if task.Title == "" {
-			fmt.Print("ERROR API title is mandatory  \"/api/task\"\n")
+			fmt.Printf("ERROR API title is mandatory \"/api/task\" (%s)\n", err.Error())
 			http.Error(w, `{"error": "Title is required"}`,
 				http.StatusBadRequest)
 			return
 		}
 		if task.Date == "" {
-			fmt.Print("DEBUG API task date is missing  \"/api/task\"\n")
+			fmt.Print("DEBUG API task date is missing \"/api/task\" (%s)\n", err.Error())
 			task.Date = time.Now().Format(dateFormat)
 		} else {
 			parsedDate, err := time.Parse(dateFormat, task.Date)
@@ -84,19 +84,17 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			}
 		}
 		query := `INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)`
-		fmt.Printf("INFO SQL attempt to submit data to scheduler (%s, %s, %s, %s)\n",
-			task.Date, task.Title, task.Comment, task.Repeat)
+		fmt.Printf("INFO SQL attempt to submit data to scheduler %v\n", task)
 		result, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat)
 		if err != nil {
-			fmt.Printf("ERROR SQL unable to submit data to scheduler (%s, %s, %s, %s)\n",
-				task.Date, task.Title, task.Comment, task.Repeat)
+			fmt.Printf("ERROR SQL unable to submit data to scheduler %v (%s)\n", task, err.Error())
 			http.Error(w, fmt.Sprintf(`{"error":"Unable to submit data to DB: %v"}`, err),
 				http.StatusInternalServerError)
 			return
 		}
 		id, err := result.LastInsertId()
 		if err != nil {
-			fmt.Print("ERROR SQL unable to get last scheduler task ID")
+			fmt.Printf("ERROR SQL unable to get last scheduler task ID (%s)\n", err.Error())
 			http.Error(w, fmt.Sprintf(`{"error":"Unable to get last scheduler task ID: %s"}`, err),
 				http.StatusInternalServerError)
 			return
@@ -124,14 +122,14 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				http.StatusBadRequest)
 			return
 		} else if err != nil {
-			fmt.Printf("ERROR SQL error while retrieving task with ID %s: %s\n", taskId, err)
+			fmt.Printf("ERROR SQL error while retrieving task with ID %s (%s)\n", taskId, err.Error())
 			http.Error(w, `{"error": "Task ID is missing"}`,
 				http.StatusInternalServerError)
 			return
 		}
 		resp, err := json.Marshal(task)
 		if err != nil {
-			fmt.Print("ERROR API unable to seriliaze selected task")
+			fmt.Printf("ERROR API unable to seriliaze selected task ()\n", err.Error())
 			http.Error(w, fmt.Sprintf(`{"error": "Unable to seriliaze current task %s:"}`, taskId),
 				http.StatusInternalServerError)
 		}
@@ -142,14 +140,14 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		fmt.Print("INFO API task received PUT message \"/api/task\"\n")
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-			fmt.Print("ERROR API unable to deserialize JSON")
+			fmt.Printf("ERROR API unable to deserialize JSON (%s)\n", err.Error())
 			http.Error(w, `{"error":"Unable to deserialize JSON"}`, http.StatusBadRequest)
 			return
 		}
 		fmt.Printf("DEBUG API PUT message \"/api/task\" %+v\n", task)
 		if _, err := strconv.Atoi(task.ID); err != nil {
 			//TODO надо бы в легулярку чтобы не подгружать библиотеку strconv
-			fmt.Printf("ERROR API ID is not a number: %s\n", task.ID)
+			fmt.Printf("ERROR API ID is not a number - [%s] (%s)\n", task.ID, err.Error())
 			http.Error(w, `{"error":"ID is not a number"}`, http.StatusBadRequest)
 			return
 		}
@@ -159,7 +157,7 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			return
 		}
 		if _, err := time.Parse(dateFormat, task.Date); err != nil {
-			fmt.Print("ERROR API unable to format date in PUT message\n")
+			fmt.Printf("ERROR API unable to format date in PUT message (%s)\n", err.Error())
 			http.Error(w, `{"error":"Unable to format date in PUT message"}`, http.StatusBadRequest)
 			return
 		}
@@ -172,13 +170,13 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		query := `UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`
 		execResult, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
 		if err != nil {
-			fmt.Printf("ERROR SQL unable to update task with ID: %s\n", task.ID)
+			fmt.Printf("ERROR SQL unable to update task with ID %s (%s)\n", task.ID, err.Error())
 			http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
 			return
 		}
 		rowsAffected, err := execResult.RowsAffected()
 		if err != nil {
-			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after updating task ID: %s\n", task.ID)
+			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after updating task ID %s (%s)\n", task.ID, err.Error())
 			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
 			return
 		}
@@ -190,7 +188,6 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{})
 	case r.Method == http.MethodDelete:
-		// Do Repeat Yorself driven application development
 		var task Task
 		taskId := r.URL.Query().Get("id")
 		if taskId == "" {
@@ -200,7 +197,7 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		}
 		if _, err := strconv.Atoi(taskId); err != nil {
 			//TODO надо бы в легулярку чтобы не подгружать библиотеку strconv
-			fmt.Printf("ERROR API ID is not a number: %s\n", taskId)
+			fmt.Printf("ERROR API ID is not a number %s (%s)\n", taskId, err.Error())
 			http.Error(w, `{"error":"ID is not a number"}`, http.StatusBadRequest)
 			return
 		}
@@ -208,13 +205,13 @@ func HandlerAPITask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		query := `DELETE FROM scheduler WHERE id = ?`
 		execResult, err := db.Exec(query, taskId)
 		if err != nil {
-			fmt.Printf("ERROR SQL unable to delete task with ID: %s\n", taskId)
+			fmt.Printf("ERROR SQL unable to delete task with ID %s (%s)\n", taskId, err.Error())
 			http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
 			return
 		}
 		rowsAffected, err := execResult.RowsAffected()
 		if err != nil {
-			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after deleting task ID: %s\n", task.ID)
+			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after deleting task ID %s (%s)\n", task.ID, err.Error())
 			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
 			return
 		}
@@ -246,7 +243,7 @@ func HandlerAPITaskS(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		query := `SELECT * FROM scheduler ORDER BY date ASC LIMIT ?`
 		rowsData, err := db.Query(query, maxRowsTasks)
 		if err != nil {
-			fmt.Print("ERROR SQL unable to get current tasks\n")
+			fmt.Printf("ERROR SQL unable to get current tasks (%s)\n", err.Error())
 			http.Error(w, fmt.Sprintf(`{"error": "Unable to get current tasks: %s"}`, err),
 				http.StatusInternalServerError)
 			return
@@ -261,7 +258,7 @@ func HandlerAPITaskS(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				&task.Comment,
 				&task.Repeat)
 			if err != nil {
-				fmt.Print("ERROR SQL unable to parce current tasks\n")
+				fmt.Printf("ERROR SQL unable to parce current tasks (%s)\n", err.Error())
 				http.Error(w, fmt.Sprintf(`{"error": "Unable to parce current tasks: %s"}`, err),
 					http.StatusInternalServerError)
 			}
@@ -284,7 +281,7 @@ func HandlerAPITaskDone(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 	if _, err := strconv.Atoi(taskId); err != nil {
 		//TODO надо бы в легулярку чтобы не подгружать библиотеку strconv
-		fmt.Printf("ERROR API ID is not a number: %s\n", taskId)
+		fmt.Printf("ERROR API ID is not a number %s (%s)\n", taskId, err.Error())
 		http.Error(w, `{"error":"ID is not a number"}`, http.StatusBadRequest)
 		return
 	}
@@ -298,7 +295,7 @@ func HandlerAPITaskDone(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			http.Error(w, `{"error":"Corresponding ID not found in SQL database"}`, http.StatusNotFound)
 			return
 		} else if err != nil {
-			fmt.Printf("ERROR SQL unable to update task with ID: %s\n", task.ID)
+			fmt.Printf("ERROR SQL unable to update task with ID %s (%s)\n", task.ID, err.Error())
 			http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
 			return
 		}
@@ -307,7 +304,7 @@ func HandlerAPITaskDone(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			fmt.Printf("DEBUG SQL \"repeat\" is empty, trying to delete task with id: %s\n", task.ID)
 			_, err := db.Exec(`DELETE FROM scheduler WHERE id = ?`, taskId)
 			if err != nil {
-				fmt.Printf("ERROR SQL unable to delete task with id: %s", task.ID)
+				fmt.Printf("ERROR SQL unable to delete task with ID %s (%s)\n", task.ID, err.Error())
 				http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
 				return
 			}
@@ -316,14 +313,14 @@ func HandlerAPITaskDone(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			now := time.Now()
 			nextDate, err := NextDate(now, task.Date, task.Repeat)
 			if err != nil {
-				fmt.Printf("DEBUG API failed to calculate new date for task ID: %s\t(%s)\n", task.ID, err)
+				fmt.Printf("DEBUG API failed to calculate new date for task ID: %s (%s)\n", task.ID, err.Error())
 				http.Error(w, `{"error":"failed to calculate new date for the task"}`, http.StatusInternalServerError)
 				return
 			}
 			fmt.Print("DEBUG API new date calculated, proceed to update DB\n")
 			_, err = db.Exec(`UPDATE scheduler SET date = ? WHERE id = ?`, nextDate, taskId)
 			if err != nil {
-				fmt.Printf("ERROR SQL failed to UPDATE ID: %s\t(%s)", task.ID, err)
+				fmt.Printf("ERROR SQL failed to UPDATE ID: %s (%s)", task.ID, err.Error())
 				http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
 				return
 			}
@@ -335,13 +332,13 @@ func HandlerAPITaskDone(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		query := `DELETE FROM scheduler WHERE id = ?`
 		execResult, err := db.Exec(query, taskId)
 		if err != nil {
-			fmt.Printf("ERROR SQL unable to delete task with ID: %s\n", taskId)
+			fmt.Printf("ERROR SQL unable to delete task with ID %s (%s)\n", taskId, err.Error())
 			http.Error(w, `{"error":"SQL exec failure"}`, http.StatusInternalServerError)
 			return
 		}
 		rowsAffected, err := execResult.RowsAffected()
 		if err != nil {
-			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after deleting task ID: %s\n", task.ID)
+			fmt.Printf("ERROR SQL didn't reiceved affected rows from DB after deleting task ID %s (%s)\n", task.ID, err.Error())
 			http.Error(w, `{"error":"Unable to format repeat in PUT message"}`, http.StatusInternalServerError)
 			return
 		}

@@ -24,7 +24,7 @@ func Getenv(key, fallback string) string {
 func GetDBConnector(dbFileName string) (*sql.DB, error) {
 	appPath, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("ERROR SQL unable to find working directory\n")
+		fmt.Printf("ERROR SQL unable to find working directory (%s)\n", err.Error())
 		return nil, err
 	}
 	dbFile := filepath.Join(appPath, dbFileName)
@@ -36,6 +36,7 @@ func GetDBConnector(dbFileName string) (*sql.DB, error) {
 	}
 	dbCreator, errOpen := sql.Open("sqlite3", dbFile)
 	if errOpen != nil {
+		fmt.Printf("ERROR SQL unable to open \"%s\" working directory (%s)\n", dbFile, err.Error())
 		return nil, fmt.Errorf("unable to open DB \"%s\"", dbFileName)
 	}
 	fmt.Print("\n")
@@ -50,7 +51,7 @@ func GetDBConnector(dbFileName string) (*sql.DB, error) {
 func NextDate(now time.Time, date string, repeat string) (string, error) {
 	dateTime, err := time.Parse(dateFormat, date)
 	if err != nil {
-		fmt.Printf("ERROR FUNC nextdate incorrect date(%s) format\n", date)
+		fmt.Printf("ERROR FUNC nextdate incorrect date \"%s\" format (%s)\n", date, err.Error())
 		return "", err
 	}
 	reDays := regexp.MustCompile(daysRegex)
