@@ -1,9 +1,8 @@
 package main
 
 import (
+	log "main/logging"
 	"net/http"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -35,15 +34,14 @@ func main() {
 	// START SQL DB
 	dbName := Getenv("TODO_DBFILE", dbNameDefault)
 	db, err := GetDBConnector(dbName)
-	log.Infof("ROOT establishing connection to DB:%s\n", dbName)
+	log.Info("ROOT establishing connection to DB:%s", dbName)
 	if err != nil {
-		log.Fatalf("ROOT DB is unavailable. Terminating: (%s)\n", err.Error())
-		log.Fatal()
+		log.Fatal("ROOT DB is unavailable. Terminating: (%s)", err.Error())
 	}
 	defer db.Close()
 	// START WEB
 	webPort := Getenv("TODO_PORT", webPortDefault)
-	log.Infof("ROOT starting web server on port:%s\n", webPort)
+	log.Info("ROOT starting web server on port:%s", webPort)
 	// HANDLERS
 	http.Handle("/", http.FileServer(http.Dir(webDir)))
 	http.HandleFunc("/api/nextdate", HandlerNextDate)
@@ -60,7 +58,6 @@ func main() {
 		default:
 			HandlerOTHER(w, r)
 		}
-		//HandlerAPITask(w, r, db)
 	})
 	http.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
 		HandlerAPITaskS(w, r, db)
@@ -74,9 +71,8 @@ func main() {
 		default:
 			HandlerOTHER(w, r)
 		}
-		//HandlerAPITaskDone(w, r, db)
 	})
 	if http.ListenAndServe(":"+webPort, nil) != nil {
-		log.Fatalf("ROOT web server isn't started. Terminating: (%s)\n", err.Error())
+		log.Fatal("ROOT web server isn't started. Terminating: (%s)", err.Error())
 	}
 }
