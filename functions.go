@@ -11,6 +11,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
 )
 
 func Getenv(key, fallback string) string {
@@ -24,27 +25,26 @@ func Getenv(key, fallback string) string {
 func GetDBConnector(dbFileName string) (*sql.DB, error) {
 	appPath, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("ERROR SQL unable to find working directory (%s)\n", err.Error())
+		log.Errorf("ERROR SQL unable to find working directory (%s)\n", err.Error())
 		return nil, err
 	}
 	dbFile := filepath.Join(appPath, dbFileName)
-	fmt.Printf("INFO SQL full path to DB file: %s", dbFile)
+	log.Infof("SQL full path to DB file: %s", dbFile)
 	_, err = os.Stat(dbFile)
 	if err != nil {
-		fmt.Print("INFO SQL DB is missing. creating... ")
+		log.Infof("SQL DB is missing. creating... ")
 		os.Create(dbFile)
 	}
 	dbCreator, errOpen := sql.Open("sqlite3", dbFile)
 	if errOpen != nil {
-		fmt.Printf("ERROR SQL unable to open \"%s\" working directory (%s)\n", dbFile, err.Error())
+		log.Errorf("SQL unable to open \"%s\" working directory (%s)\n", dbFile, err.Error())
 		return nil, fmt.Errorf("unable to open DB \"%s\"", dbFileName)
 	}
-	fmt.Print("\n")
 	_, errCreate := dbCreator.Exec(SQLinit)
 	if errCreate != nil {
 		return nil, errCreate
 	}
-	fmt.Printf("INFO SQL DB \"%s\" id ready to use\n", dbFile)
+	log.Infof("SQL DB \"%s\" id ready to use\n", dbFile)
 	return dbCreator, nil
 }
 
