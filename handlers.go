@@ -51,13 +51,13 @@ func HandlerAddTask(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	log.Debug("API POST message '/api/task' serialization %v",
 		task)
 	if task.Title == "" {
-		log.Error("API title is mandatory '/api/task' (%s)", err.Error())
+		log.Error(`API title is mandatory  "/api/task"\n`)
 		http.Error(w, `{"error": "Title is required"}`,
 			http.StatusBadRequest)
 		return
 	}
 	if task.Date == "" {
-		log.Debug("API task date is missing '/api/task' (%s)", err.Error())
+		log.Debug("API task date is missing '/api/task'")
 		task.Date = time.Now().Format(dateFormat)
 	} else {
 		parsedDate, err := time.Parse(dateFormat, task.Date)
